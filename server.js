@@ -38,7 +38,7 @@ app.use("/me", function(req, res, next) {
 app.use("/me", express.static("/home/ec2-user/ReactWebsite/me/build"));
 app.use("/images", express.static("/home/ec2-user/ReactWebsite/me/build/images"));
 app.get('/', function(req, res) {
-	res.sendFile(path.join(__dirname, '../index.html'));
+	res.sendFile(path.join(__dirname, '../build/index.html'));
 });
 
 app.response.savedSend = app.response.send;
