@@ -31,9 +31,14 @@ const asyncHandler = fn =>
 //Define app
 let app = express();
 //app.use(express.static("/home/ec2-user/ReactWebsite/"));
-app.use(express.static("build"));
+app.use("/me", function(req, res, next) {
+	console.log(req.url);
+	next();
+});
+app.use("/me", express.static("/home/ec2-user/ReactWebsite/me/build"));
+app.use("/images", express.static("/home/ec2-user/ReactWebsite/me/build/images"));
 app.get('/', function(req, res) {
-	res.sendFile(path.join(__dirname, 'index.html'));
+	res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 app.response.savedSend = app.response.send;
