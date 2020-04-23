@@ -20,4 +20,4 @@ To Run
 npm run start
 
 ## WARNING
-exposes .env for example so be sure to gitignore those when developing
+exposes .env for demonstration so be sure to gitignore when developing
