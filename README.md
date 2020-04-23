@@ -19,4 +19,5 @@ npm install
 To Run
 npm run start
 
+## WARNING
 exposes .env for example so be sure to gitignore those when developing
