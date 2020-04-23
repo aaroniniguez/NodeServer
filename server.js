@@ -1,45 +1,30 @@
 const express = require('express'); 
-const fs = require('fs');
-const os = require('os');
 const path = require('path');
-
-function isEmptyObject(obj) {
-  return !Object.keys(obj).length;
+var dotenv = require('dotenv').config({path: __dirname + '/.env'});
+var https = require('https');
+var http = require('http');
+var fs = require("fs");
+const {
+	logger,
+	asyncHandler
+} =  require("./utils.js")
+//keep a reference displaying to console rather than defaulting to serverLog.txt
+let savedConsole = console.log
+console.log = logger;
+var bodyParser = require('body-parser');
+const innovationRoutes = require("./routes/innovation")
+let app = express();
+if(process.env.ENVIRONMENT != "DEVELOPMENT") {
+	app.all('*', (req, res, next) => {
+		if(req.protocol === 'https')
+			next();
+		else
+			return res.redirect("https://" + req.hostname + req.originalUrl);
+	});
 }
 
-var util = require('util');
-var log_file = fs.createWriteStream(__dirname + '/nohup.out', {flags : 'a'});
-console.log = function(...args){
-	var myTime = new Date();
-	myTime = myTime.toString().split("GMT")[0];
-	log_file.write("\n====" + myTime + "====\n");
-	args.forEach(function(element){
-	   log_file.write(util.format(element) + '\n');
-	});
-};
-var bodyParser = require('body-parser');
-
-//catches all errors, use this wrapper on all app.get callback func
-const asyncHandler = fn =>  
-    (req, res, next) =>  {
-        Promise.resolve(fn(req, res, next)).catch(function(error){   
-			console.log(error);
-            next();
-        });
-    };  
-	
-//Define app
-let app = express();
-//app.use(express.static("/home/ec2-user/ReactWebsite/"));
-app.use("/me", express.static("/home/ec2-user/ReactWebsite/me/build"));
-app.use("/images", express.static("/home/ec2-user/ReactWebsite/me/build/images"));
-app.use("/TEFS", express.static("/home/ec2-user/ReactWebsite/me/build/TEFS"));
-app.get("/", function(req, res) {
-	res.sendFile(path.join(__dirname, '../build/index.html'));
-});
-
 app.response.savedSend = app.response.send;
-app.response.send = function(data){
+app.response.send = function(data) {
 	console.log("RESPONSE "+ data);	
 	return this.savedSend(data);
 };
@@ -48,25 +33,30 @@ app.use(bodyParser.urlencoded({
 	 extended: true 
 }));
 app.use(bodyParser.json());
-app.use(function (req, res, next) {
-	if(isEmptyObject(req.body))
-		console.log(req.method +" "+ req.url);
-	else
-		console.log(req.method +" "+ req.url, req.body);
-	next();
-});
 
-//Test Request Endpoint
-app.get('/test.php', asyncHandler(async function(req, res) {
-	res.type("json");
-	res.send(`{"live":"success"}`);
-	res.end();
-	return;
+//serve UI 
+app.use(express.static(__dirname+"/../public"));
+app.use("/api/innovation", innovationRoutes);
+app.get('/rest/test.php', asyncHandler(async function(req, res) {
+	return res.cookie('testing','test').send(`{"live":"success"}`);
 }));
 app.get("/*", function(req, res) {
-	res.sendFile(path.join(__dirname, '../build/index.html'));
+	res.sendFile(path.join(__dirname, '/../public/index.html'));
 });
-var portNumber = 3000;
-let server = app.listen(portNumber, function() {  
-	console.log("Server is listening on port " + portNumber);
-});
+if(process.env.ENVIRONMENT != "DEVELOPMENT") {
+	// Certificate
+	const privateKey = fs.readFileSync('/etc/letsencrypt/live/boardgamecards.com/privkey.pem', 'utf8');
+	const certificate = fs.readFileSync('/etc/letsencrypt/live/boardgamecards.com/cert.pem', 'utf8');
+	const ca = fs.readFileSync('/etc/letsencrypt/live/boardgamecards.com/fullchain.pem', 'utf8');
+	const credentials = {
+		key: privateKey,
+		cert: certificate,
+		ca: ca
+	};
+	https.createServer(credentials, app).listen(443);
+	http.createServer(app).listen(80);
+	savedConsole(`listening on https://localhost/rest/test.php`)
+} else {
+	http.createServer(app).listen(process.env.SERVER_PORT);
+	savedConsole(`listening on http://localhost:${process.env.SERVER_PORT}/rest/test.php`)
+}
